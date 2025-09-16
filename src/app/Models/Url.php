@@ -13,10 +13,16 @@ class Url extends Model
         'url',
         'html_path',
         'user_id',
+        'domain_id',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function domain()
+    {
+        return $this->belongsTo(Domain::class);
     }
 }

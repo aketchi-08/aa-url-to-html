@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
+use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UrlController;
 
@@ -20,6 +21,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('urls', UrlController::class);
     Route::get('urls/{id}/download', [UrlController::class, 'download'])->name('urls.download');
+
+    Route::resource('domains', DomainController::class);
 });
 
 require __DIR__.'/auth.php';
