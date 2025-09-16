@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('urls', function (Blueprint $table) {
+        Schema::create('domains', function (Blueprint $table) {
             $table->id();
-            $table->string('url');
-            $table->string('html_path')->nullable(); // 保存したHTMLファイルのパス
-            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // 誰が登録したか
+            $table->string('name')->unique(); // 例: example.com
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // 所有者
             $table->timestamps();
         });
     }
@@ -25,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('urls');
+        Schema::dropIfExists('domains');
     }
 };

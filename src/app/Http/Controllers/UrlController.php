@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Domain;
 use App\Models\Url;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,20 +37,29 @@ class UrlController extends Controller
             'url' => 'required|url',
         ]);
 
-        // URLからHTMLを取得
+        // URLからドメインを抽出
+        $host = parse_url($request->url, PHP_URL_HOST);
+
+        // ドメインが存在しなければ作成
+        $domain = Domain::firstOrCreate(
+            ['name' => $host],
+            ['user_id' => Auth::id()]
+        );
+
+        // HTML取得
         $client = new Client();
         $response = $client->get($request->url);
         $html = $response->getBody()->getContents();
 
-        // HTMLファイルを保存
         $filename = 'htmls/' . md5($request->url . now()) . '.html';
         Storage::put($filename, $html);
 
-        // DBに保存
+        // URL保存（domain_id 紐づけ）
         Url::create([
             'url'       => $request->url,
             'html_path' => $filename,
             'user_id'   => Auth::id(),
+            'domain_id' => $domain->id,
         ]);
 
         return redirect()->route('urls.index')->with('success', 'URLを保存しました');

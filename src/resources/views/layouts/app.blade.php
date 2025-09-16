@@ -43,6 +43,12 @@
                     <span>URL管理</span></a>
             </li>
 
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('domains.index') }}">
+                    <i class="fas fa-fw fa-link"></i>
+                    <span>DOMAIN管理</span></a>
+            </li>
+
             <hr class="sidebar-divider d-none d-md-block">
         </ul>
         <!-- End of Sidebar -->
