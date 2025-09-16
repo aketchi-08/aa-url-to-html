@@ -1,0 +1,86 @@
+version: "3.9"
+
+services:
+  # Laravel backend
+  backend:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
+    container_name: laravel-aa-url-to-html
+    working_dir: /var/www
+    volumes:
+      - ./src:/var/www                      # Laravel プロジェクトをマウント
+      - ./docker/php/myphp.ini:/usr/local/etc/php/conf.d/myphp.ini
+      - storage_framework:/var/www/storage/framework
+      - bootstrap_cache:/var/www/bootstrap/cache
+    networks:
+      - app-network
+    depends_on:
+      - db
+    environment:
+      - COMPOSER_ALLOW_SUPERUSER=1
+
+  # Nginx
+  web:
+    image: nginx:latest
+    container_name: nginx-aa-url-to-html
+    ports:
+      - "8000:80"
+    volumes:
+      - ./src:/var/www                       # Laravel プロジェクトをマウント
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
+  # MySQL
+  db:
+    image: mysql:8.0
+    container_name: mysql-aa-url-to-html
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - app-network
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-aa-url-to-html
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  # Composer
+  composer:
+    image: composer:latest
+    container_name: composer-aa-url-to-html
+    working_dir: /var/www
+    volumes:
+      - ./src:/var/www
+    networks:
+      - app-network
+    command: tail -f /dev/null
+
+volumes:
+  dbdata:
+  storage_framework:
+  bootstrap_cache:
+
+networks:
+  app-network:
+    driver: bridge
