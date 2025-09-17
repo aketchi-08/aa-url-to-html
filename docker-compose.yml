@@ -11,6 +11,7 @@ services:
     volumes:
       - ./src:/var/www
       - ./docker/php/myphp.ini:/usr/local/etc/php/conf.d/myphp.ini
+      - /var/www/node_modules
       - vendor_composer:/var/www/vendor/composer
       - storage_framework:/var/www/storage/framework
       - bootstrap_cache:/var/www/bootstrap/cache

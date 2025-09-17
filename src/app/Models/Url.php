@@ -88,4 +88,15 @@ class Url extends Model
 
         return $filePath;
     }
+
+    /**
+     * HTML ファイルが存在するかチェック
+     */
+    public function getHtmlExistsAttribute(): bool
+    {
+        if (!$this->html_path) {
+            return false;
+        }
+        return Storage::disk('public')->exists($this->html_path);
+    }
 }

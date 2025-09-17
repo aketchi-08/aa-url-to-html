@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Domain;
 use App\Models\Url;
+use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use GuzzleHttp\Client;
 
 class UrlController extends Controller
 {
@@ -166,5 +167,26 @@ class UrlController extends Controller
         $url->delete();
 
         return redirect()->route('urls.index')->with('success', 'URLを削除しました');
+    }
+
+    /**
+     * HTML を再取得して上書き保存
+     */
+    public function reload(Url $url)
+    {
+        try {
+            // HTTPリクエストでURLのHTMLを取得
+            $response = Http::get($url->url);
+
+            if ($response->successful()) {
+                $url->saveHtml($response->body());
+
+                return redirect()->route('urls.index')->with('success', 'HTMLを再生成しました');
+            } else {
+                return redirect()->route('urls.index')->with('error', '取得に失敗しました');
+            }
+        } catch (\Exception $e) {
+            return redirect()->route('urls.index')->with('error', 'エラー: ' . $e->getMessage());
+        }
     }
 }

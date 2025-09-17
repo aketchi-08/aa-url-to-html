@@ -21,6 +21,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('urls', UrlController::class);
     Route::get('urls/{id}/download', [UrlController::class, 'download'])->name('urls.download');
+    // リロード用ルート
+    Route::post('/urls/{url}/reload', [UrlController::class, 'reload'])->name('urls.reload');
 
     Route::resource('domains', DomainController::class);
 });
