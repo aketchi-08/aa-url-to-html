@@ -4,7 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\DomCrawler\Crawler;
 
 class Url extends Model
 {
@@ -77,7 +79,7 @@ class Url extends Model
         }
 
         // 保存先パス（publicディスク配下）
-        $filePath = $host . $path;
+        $filePath = 'htmls/' . $host . $path;
 
         // 上書き保存
         Storage::disk('public')->put($filePath, $html);
@@ -99,4 +101,102 @@ class Url extends Model
         }
         return Storage::disk('public')->exists($this->html_path);
     }
+
+    public function saveHtmlWithTemplateAndAssets(string $html)
+    {
+        $parsed = parse_url($this->url);
+        $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
+        $path = $parsed['path'] ?? '/';
+
+        if (substr($path, -1) === '/') {
+            $path .= 'index';
+        }
+        if (!str_ends_with($path, '.html')) {
+            $path .= '.html';
+        }
+
+        // HTML 保存先
+        $filePath = "htmls/{$host}/" . ltrim($path, '/');
+
+        // --- HTML解析 ---
+        $crawler = new Crawler($html);
+
+        // 抽出対象部分
+        $contentNode = $crawler->filter('article.style-itrjxe');
+        $extractedHtml = $contentNode->count() ? $contentNode->html() : '';
+
+        // --- 不要なdivを削除 ---
+        $crawler2 = new Crawler($extractedHtml);
+        $crawler2->filter('div.style-rwy56f')->each(function (Crawler $node) use (&$extractedHtml) {
+            // 削除するために HTML を置換
+            $extractedHtml = str_replace($node->outerHtml(), '', $extractedHtml);
+        });
+
+        // --- 画像処理 ---
+        $crawler = new Crawler($extractedHtml);
+
+        $crawler->filter('img')->each(function ($node) use (&$extractedHtml, $filePath) {
+            $src = $node->attr('src');
+            if (!$src) return;
+
+            // 外部URLのみ対象
+            if (!preg_match('#^https?://#', $src)) return;
+
+            $imgParsed = parse_url($src);
+            $imgHost = preg_replace('/^www\./i', '', strtolower($imgParsed['host'] ?? ''));
+            $imgPath = ltrim($imgParsed['path'] ?? '', '/');
+
+            // 保存先: images/{imgHost}/path/to/file
+            $savePath = "images/{$imgHost}/" . $imgPath;
+
+            try {
+                $response = Http::get($src);
+                if ($response->successful()) {
+                    Storage::disk('public')->put($savePath, $response->body());
+
+                    // HTML の相対パスに変換
+                    $relativePath = $this->getRelativePath($filePath, $savePath);
+
+                    $extractedHtml = str_replace($src, $relativePath, $extractedHtml);
+                }
+            } catch (\Exception $e) {
+                // ダウンロード失敗は無視
+            }
+        });
+
+        // --- テンプレート読み込み ---
+        $templatePath = "template/{$host}/template.html";
+        if (!Storage::disk('public')->exists($templatePath)) {
+            throw new \Exception("テンプレートが存在しません: {$templatePath}");
+        }
+        $templateHtml = Storage::disk('public')->get($templatePath);
+
+        // --- 埋め込み ---
+        $finalHtml = str_replace('{{ content }}', $extractedHtml, $templateHtml);
+
+        // --- HTML 保存 ---
+        Storage::disk('public')->put($filePath, $finalHtml);
+
+        $this->html_path = $filePath;
+        $this->save();
+
+        return $filePath;
+    }
+
+    /**
+     * 保存先HTMLから画像までの相対パスを計算
+     */
+    private function getRelativePath(string $fromHtml, string $toAsset): string
+    {
+        $fromParts = explode('/', dirname($fromHtml));
+        $toParts   = explode('/', $toAsset);
+
+        while (count($fromParts) && count($toParts) && $fromParts[0] === $toParts[0]) {
+            array_shift($fromParts);
+            array_shift($toParts);
+        }
+
+        $relativeParts = array_fill(0, count($fromParts), '..');
+        return implode('/', array_merge($relativeParts, $toParts));
+    } 
 }
