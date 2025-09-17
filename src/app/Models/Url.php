@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\DomCrawler\Crawler;
 
 class Url extends Model
 {
@@ -77,7 +78,7 @@ class Url extends Model
         }
 
         // 保存先パス（publicディスク配下）
-        $filePath = $host . $path;
+        $filePath = 'htmls/' . $host . $path;
 
         // 上書き保存
         Storage::disk('public')->put($filePath, $html);
@@ -98,5 +99,52 @@ class Url extends Model
             return false;
         }
         return Storage::disk('public')->exists($this->html_path);
+    }
+
+    public function saveHtmlWithTemplate(string $html)
+    {
+        $parsed = parse_url($this->url);
+        $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
+        $path = $parsed['path'] ?? '/';
+
+        // 末尾 / の場合は index.html
+        if (substr($path, -1) === '/') {
+            $path .= 'index';
+        }
+        if (!str_ends_with($path, '.html')) {
+            $path .= '.html';
+        }
+
+        $filePath = 'htmls/' . $host . $path;
+
+        // --- HTML抽出 ---
+        $crawler = new Crawler($html);
+
+        // 取得したい部分をCSSセレクタで抽出
+        // 例: <article class="style-itrjxe">
+        $contentNode = $crawler->filter('article.style-itrjxe');
+        $extractedHtml = $contentNode->count() ? $contentNode->html() : '';
+
+        // Storageのpublicディスク配下のテンプレートパス
+        $templatePath = "template/{$host}/template.html";
+
+        if (!Storage::disk('public')->exists($templatePath)) {
+            throw new \Exception("テンプレートが存在しません: {$templatePath}");
+        }
+
+        // ファイル読み込み
+        $templateHtml = Storage::disk('public')->get($templatePath);
+
+        // --- テンプレートに埋め込み ---
+        // テンプレート側に {{ content }} プレースホルダを入れておく
+        $finalHtml = str_replace('{{ content }}', $extractedHtml, $templateHtml);
+
+        // --- 保存 ---
+        Storage::disk('public')->put($filePath, $finalHtml);
+
+        $this->html_path = $filePath;
+        $this->save();
+
+        return $filePath;
     }
 }
