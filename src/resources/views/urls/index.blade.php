@@ -64,6 +64,13 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    <!-- リロードボタン -->
+                                    <form action="{{ route('urls.reload', $url->id) }}" method="POST" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-secondary" title="再生成">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty
