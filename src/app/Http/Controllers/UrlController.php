@@ -111,19 +111,44 @@ class UrlController extends Controller
             'url' => 'required|url',
         ]);
 
-        // URLからHTMLを再取得
+        // --- URL 正規化 (www を削除) ---
+        $parsed = parse_url(trim($request->url));
+        $scheme = $parsed['scheme'] ?? 'http';
+        $host   = $parsed['host'] ?? $parsed['path'] ?? '';
+        $path   = $parsed['path'] ?? '';
+
+        // www. を除去 & 小文字化
+        $host = preg_replace('/^www\./i', '', strtolower($host));
+
+        // 正規化したURLを再構築
+        $normalizedUrl = $scheme . '://' . $host . $path;
+        if (!empty($parsed['query'])) {
+            $normalizedUrl .= '?' . $parsed['query'];
+        }
+        if (!empty($parsed['fragment'])) {
+            $normalizedUrl .= '#' . $parsed['fragment'];
+        }
+
+        // --- Domain の自動判定/作成 ---
+        $domain = Domain::firstOrCreate(
+            ['name' => $host],
+            ['user_id' => auth()->id()]
+        );
+
+        // --- URLからHTMLを再取得 ---
         $client = new Client();
-        $response = $client->get($request->url);
+        $response = $client->get($normalizedUrl);
         $html = $response->getBody()->getContents();
 
-        // HTMLファイルを保存
-        $filename = 'htmls/' . md5($request->url . now()) . '.html';
+        // --- HTMLファイルを保存 ---
+        $filename = 'htmls/' . md5($normalizedUrl . now()) . '.html';
         Storage::put($filename, $html);
 
-        // DB更新
+        // --- DB更新 ---
         $url->update([
-            'url'       => $request->url,
+            'url'       => $normalizedUrl,
             'html_path' => $filename,
+            'domain_id' => $domain->id,
         ]);
 
         return redirect()->route('urls.index')->with('success', 'URLを更新しました');
