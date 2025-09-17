@@ -102,79 +102,69 @@ class Url extends Model
         return Storage::disk('public')->exists($this->html_path);
     }
 
-    public function saveHtmlWithTemplateAndAssets(string $html)
+    public function saveHtmlWithTemplateAndAssets(Domain $domain, string $html)
     {
         $parsed = parse_url($this->url);
         $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
         $path = $parsed['path'] ?? '/';
 
-        if (substr($path, -1) === '/') {
-            $path .= 'index';
-        }
-        if (!str_ends_with($path, '.html')) {
-            $path .= '.html';
-        }
+        if (substr($path, -1) === '/') $path .= 'index';
+        if (!str_ends_with($path, '.html')) $path .= '.html';
 
-        // HTML 保存先
         $filePath = "htmls/{$host}/" . ltrim($path, '/');
 
-        // --- HTML解析 ---
+        // --- 抽出部分 ---
         $crawler = new Crawler($html);
+        $extractSelectors = $domain->extractSelectors->pluck('selector')->toArray();
+        $extractedHtml = '';
+        foreach ($extractSelectors as $sel) {
+            $node = $crawler->filter($sel);
+            if ($node->count()) $extractedHtml .= $node->html();
+        }
 
-        // 抽出対象部分
-        $contentNode = $crawler->filter('article.style-itrjxe');
-        $extractedHtml = $contentNode->count() ? $contentNode->html() : '';
-
-        // --- 不要なdivを削除 ---
+        // --- 削除対象 ---
+        $removeSelectors = $domain->removeSelectors->pluck('selector')->toArray();
         $crawler2 = new Crawler($extractedHtml);
-        $crawler2->filter('div.style-rwy56f')->each(function (Crawler $node) use (&$extractedHtml) {
-            // 削除するために HTML を置換
-            $extractedHtml = str_replace($node->outerHtml(), '', $extractedHtml);
-        });
+        foreach ($removeSelectors as $sel) {
+            $crawler2->filter($sel)->each(function($node) use (&$extractedHtml){
+                $outer = $node->getNode(0)->ownerDocument->saveHTML($node->getNode(0));
+                $extractedHtml = str_replace($outer, '', $extractedHtml);
+            });
+        }
 
-        // --- 画像処理 ---
-        $crawler = new Crawler($extractedHtml);
-
-        $crawler->filter('img')->each(function ($node) use (&$extractedHtml, $filePath) {
+        // --- 画像ダウンロード & 相対パス変換 ---
+        $crawler3 = new Crawler($extractedHtml);
+        $crawler3->filter('img')->each(function($node) use (&$extractedHtml, $filePath) {
             $src = $node->attr('src');
-            if (!$src) return;
-
-            // 外部URLのみ対象
-            if (!preg_match('#^https?://#', $src)) return;
+            if (!$src || !preg_match('#^https?://#', $src)) return;
 
             $imgParsed = parse_url($src);
-            $imgHost = preg_replace('/^www\./i', '', strtolower($imgParsed['host'] ?? ''));
+            $imgHost = preg_replace('/^www\./i','',$imgParsed['host'] ?? '');
             $imgPath = ltrim($imgParsed['path'] ?? '', '/');
-
-            // 保存先: images/{imgHost}/path/to/file
-            $savePath = "images/{$imgHost}/" . $imgPath;
+            $savePath = "images/{$imgHost}/{$imgPath}";
 
             try {
                 $response = Http::get($src);
                 if ($response->successful()) {
                     Storage::disk('public')->put($savePath, $response->body());
-
-                    // HTML の相対パスに変換
                     $relativePath = $this->getRelativePath($filePath, $savePath);
-
                     $extractedHtml = str_replace($src, $relativePath, $extractedHtml);
                 }
-            } catch (\Exception $e) {
-                // ダウンロード失敗は無視
-            }
+            } catch (\Exception $e) {}
         });
 
-        // --- テンプレート読み込み ---
+        // --- テンプレート埋め込み ---
         $templatePath = "template/{$host}/template.html";
         if (!Storage::disk('public')->exists($templatePath)) {
             throw new \Exception("テンプレートが存在しません: {$templatePath}");
         }
         $templateHtml = Storage::disk('public')->get($templatePath);
-
-        // --- 埋め込み ---
         $finalHtml = str_replace('{{ content }}', $extractedHtml, $templateHtml);
 
-        // --- HTML 保存 ---
+        // --- ディレクトリ作成 ---
+        $dir = dirname(storage_path('app/public/' . $filePath));
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+
         Storage::disk('public')->put($filePath, $finalHtml);
 
         $this->html_path = $filePath;
@@ -183,20 +173,18 @@ class Url extends Model
         return $filePath;
     }
 
-    /**
-     * 保存先HTMLから画像までの相対パスを計算
-     */
-    private function getRelativePath(string $fromHtml, string $toAsset): string
+    /** 相対パス計算 */
+    private function getRelativePath(string $fromHtml,string $toAsset): string
     {
-        $fromParts = explode('/', dirname($fromHtml));
+        $fromParts = explode('/',dirname($fromHtml));
         $toParts   = explode('/', $toAsset);
 
-        while (count($fromParts) && count($toParts) && $fromParts[0] === $toParts[0]) {
+        while(count($fromParts)&&count($toParts)&&$fromParts[0]===$toParts[0]){
             array_shift($fromParts);
             array_shift($toParts);
         }
 
-        $relativeParts = array_fill(0, count($fromParts), '..');
-        return implode('/', array_merge($relativeParts, $toParts));
-    } 
+        $relativeParts = array_fill(0,count($fromParts),'..');
+        return implode('/', array_merge($relativeParts,$toParts));
+    }
 }

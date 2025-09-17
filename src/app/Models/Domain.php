@@ -21,6 +21,14 @@ class Domain extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function extractSelectors() {
+        return $this->hasMany(ExtractSelector::class);
+    }
+
+    public function removeSelectors() {
+        return $this->hasMany(RemoveSelector::class);
+    }
+
     // www を削除するアクセサ
     public function setNameAttribute($value)
     {
