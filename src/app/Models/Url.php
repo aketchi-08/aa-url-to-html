@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Url extends Model
 {
@@ -52,5 +53,39 @@ class Url extends Model
         }
 
         $this->attributes['url'] = $normalized;
+    }
+
+    /**
+     * HTML をストレージに保存し、パスをDBに記録する
+     * 常に上書き保存
+     */
+    public function saveHtml(string $html): string
+    {
+        $parsed = parse_url($this->url);
+
+        $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
+        $path = $parsed['path'] ?? '/';
+
+        // ディレクトリ構造を保つ
+        if (substr($path, -1) === '/') {
+            $path .= 'index';
+        }
+
+        // .html 拡張子を必ず付与
+        if (!str_ends_with($path, '.html')) {
+            $path .= '.html';
+        }
+
+        // 保存先パス（publicディスク配下）
+        $filePath = $host . $path;
+
+        // 上書き保存
+        Storage::disk('public')->put($filePath, $html);
+
+        // DBに保存パスを更新
+        $this->html_path = $filePath;
+        $this->save();
+
+        return $filePath;
     }
 }

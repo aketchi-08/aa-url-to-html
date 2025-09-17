@@ -56,16 +56,15 @@ class UrlController extends Controller
         $response = $client->get($request->url);
         $html = $response->getBody()->getContents();
 
-        $filename = 'htmls/' . md5($request->url . now()) . '.html';
-        Storage::put($filename, $html);
-
         // URL保存（domain_id 紐づけ）
-        Url::create([
+        $url = Url::create([
             'url'       => $request->url,
-            'html_path' => $filename,
             'user_id'   => Auth::id(),
             'domain_id' => $domain->id,
         ]);
+
+        // HTML保存（上書き方式で .html ファイル生成 & DB更新）
+        $url->saveHtml($html);
 
         return redirect()->route('urls.index')->with('success', 'URLを保存しました');
     }
