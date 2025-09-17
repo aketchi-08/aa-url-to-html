@@ -21,6 +21,11 @@ class DomainController extends Controller
 
     public function store(Request $request)
     {
+        // 入力値を正規化してからバリデーション
+        $request->merge([
+            'name' => preg_replace('/^www\./i', '', strtolower(trim($request->name))),
+        ]);
+
         $request->validate([
             'name' => 'required|unique:domains,name',
         ]);
@@ -46,6 +51,11 @@ class DomainController extends Controller
 
     public function update(Request $request, Domain $domain)
     {
+        // 入力値を正規化してからバリデーション
+        $request->merge([
+            'name' => preg_replace('/^www\./i', '', strtolower(trim($request->name))),
+        ]);
+
         $request->validate([
             'name' => 'required|unique:domains,name,' . $domain->id,
         ]);
