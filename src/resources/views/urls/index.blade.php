@@ -43,12 +43,12 @@
                                 <td>{{ $url->id }}</td>
                                 <td><a href="{{ $url->url }}" target="_blank">{{ $url->url }}</a></td>
                                 <td>
-                                    @if($url->html_path)
-                                        <a href="{{ route('urls.show', $url->id) }}" class="btn btn-sm btn-info">
+                                    @if($url->html_exists)
+                                        <a href="{{ asset('storage/' . $url->html_path) }}" target="_blank" class="btn btn-sm btn-info">
                                             <i class="fas fa-file-alt"></i> 表示
                                         </a>
                                     @else
-                                        <span class="text-muted">未保存</span>
+                                        <span class="badge bg-danger">未保存</span>
                                     @endif
                                 </td>
                                 <td>{{ $url->user->name ?? '-' }}</td>
