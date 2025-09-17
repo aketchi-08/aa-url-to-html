@@ -178,7 +178,7 @@ class UrlController extends Controller
             // HTTPリクエストでURLのHTMLを取得
             $response = Http::get($url->url);
             if ($response->successful()) {
-                $url->saveHtmlWithTemplateAndAssets($response->body());
+                $url->saveHtmlWithTemplateAndAssets($url->domain, $response->body());
 
                 return redirect()->route('urls.index')->with('success', 'HTMLを再生成しました');
             } else {

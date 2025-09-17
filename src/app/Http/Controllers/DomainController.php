@@ -40,29 +40,23 @@ class DomainController extends Controller
 
     public function show(Domain $domain)
     {
-        $urls = $domain->urls()->latest()->paginate(10);
-        return view('domains.show', compact('domain', 'urls'));
+        $domain->load(['extractSelectors', 'removeSelectors']);
+        return view('domains.edit', compact('domain'));
     }
 
     public function edit(Domain $domain)
     {
+        $domain->load(['extractSelectors', 'removeSelectors']);
+
         return view('domains.edit', compact('domain'));
     }
 
     public function update(Request $request, Domain $domain)
     {
-        // 入力値を正規化してからバリデーション
         $request->merge([
             'name' => preg_replace('/^www\./i', '', strtolower(trim($request->name))),
         ]);
-
-        $request->validate([
-            'name' => 'required|unique:domains,name,' . $domain->id,
-        ]);
-
-        $domain->update(['name' => $request->name]);
-
-        return redirect()->route('domains.index')->with('success', 'ドメインを更新しました');
+        return redirect()->back()->with('success', 'ドメインとルールを更新しました');
     }
 
     public function destroy(Domain $domain)
