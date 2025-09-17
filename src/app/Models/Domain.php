@@ -20,4 +20,21 @@ class Domain extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // www を削除するアクセサ
+    public function setNameAttribute($value)
+    {
+        // スキーム・パスを除去
+        $host = parse_url(trim(strtolower($value)), PHP_URL_HOST);
+
+        if (!$host) {
+            // parse_url で取れなければそのまま
+            $host = trim(strtolower($value));
+        }
+
+        // 先頭の www. を削除
+        $host = preg_replace('/^www\./i', '', $host);
+
+        $this->attributes['name'] = $host;
+    }
 }

@@ -40,6 +40,11 @@ class UrlController extends Controller
         // URLからドメインを抽出
         $host = parse_url($request->url, PHP_URL_HOST);
 
+        if ($host) {
+            // 小文字化 & www.除去
+            $host = preg_replace('/^www\./i', '', strtolower($host));
+        }
+
         // ドメインが存在しなければ作成
         $domain = Domain::firstOrCreate(
             ['name' => $host],
@@ -64,6 +69,7 @@ class UrlController extends Controller
 
         return redirect()->route('urls.index')->with('success', 'URLを保存しました');
     }
+
 
     /**
      * HTMLプレビュー
