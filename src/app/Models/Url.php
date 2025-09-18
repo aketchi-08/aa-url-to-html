@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
@@ -64,22 +66,16 @@ class Url extends Model
     public function saveHtml(string $html): string
     {
         $parsed = parse_url($this->url);
-
         $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
         $path = $parsed['path'] ?? '/';
 
-        // ディレクトリ構造を保つ
-        if (substr($path, -1) === '/') {
-            $path .= 'index';
+        if ($path === '/' || !pathinfo($path, PATHINFO_EXTENSION)) {
+            $path = rtrim($path, '/'); // 最後の / を削除
+            $path .= '/_index.html';   // _index.html を付与
         }
 
-        // .html 拡張子を必ず付与
-        if (!str_ends_with($path, '.html')) {
-            $path .= '.html';
-        }
-
-        // 保存先パス（publicディスク配下）
-        $filePath = 'htmls/' . $host . $path;
+        // $filePath = "htmls/{$host}/" . ltrim($path, '/');
+        $filePath = "htmls/{$host}{$path}";
 
         // 上書き保存
         Storage::disk('public')->put($filePath, $html);
@@ -108,10 +104,13 @@ class Url extends Model
         $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
         $path = $parsed['path'] ?? '/';
 
-        if (substr($path, -1) === '/') $path .= 'index';
-        if (!str_ends_with($path, '.html')) $path .= '.html';
+        if ($path === '/' || !pathinfo($path, PATHINFO_EXTENSION)) {
+            $path = rtrim($path, '/'); // 最後の / を削除
+            $path .= '/_index.html';   // _index.html を付与
+        }
 
-        $filePath = "htmls/{$host}/" . ltrim($path, '/');
+        // $filePath = "htmls/{$host}/" . ltrim($path, '/');
+        $filePath = "htmls/{$host}{$path}";
 
         // --- 抽出部分 ---
         $crawler = new Crawler($html);
@@ -136,18 +135,29 @@ class Url extends Model
         $crawler3 = new Crawler($extractedHtml);
         $crawler3->filter('img')->each(function($node) use (&$extractedHtml, $filePath) {
             $src = $node->attr('src');
-            if (!$src || !preg_match('#^https?://#', $src)) return;
+            if (!$src) return;
 
-            $imgParsed = parse_url($src);
-            $imgHost = preg_replace('/^www\./i','',$imgParsed['host'] ?? '');
-            $imgPath = ltrim($imgParsed['path'] ?? '', '/');
-            $savePath = "images/{$imgHost}/{$imgPath}";
+            // --- 絶対URLに変換（相対や / で始まるのも解決）---
+            $baseUrl = $this->url;
+            $absUrl  = (string) \GuzzleHttp\Psr7\UriResolver::resolve(
+                new \GuzzleHttp\Psr7\Uri($baseUrl),
+                new \GuzzleHttp\Psr7\Uri($src)
+            );
+
+            $imgParsed = parse_url($absUrl);
+            $imgFile   = basename($imgParsed['path'] ?? 'image.png');
+
+            // --- HTMLと同じディレクトリに保存 ---
+            $htmlDir   = dirname($filePath); // 例: htmls/example.com/path/result
+            $savePath  = "{$htmlDir}/{$imgFile}"; 
 
             try {
-                $response = Http::get($src);
+                $response = Http::get($absUrl);
                 if ($response->successful()) {
                     Storage::disk('public')->put($savePath, $response->body());
-                    $relativePath = $this->getRelativePath($filePath, $savePath);
+
+                    // --- HTML内の参照を ./ファイル名 に変更 ---
+                    $relativePath = './' . $imgFile;
                     $extractedHtml = str_replace($src, $relativePath, $extractedHtml);
                 }
             } catch (\Exception $e) {}
