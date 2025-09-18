@@ -123,9 +123,21 @@ class Url extends Model
 
         // --- 削除対象 ---
         $removeSelectors = $domain->removeSelectors->pluck('selector')->toArray();
-        $crawler2 = new Crawler($extractedHtml);
+
+        // $remove_target = ['source', 'img', 'meta', 'link', 'br', 'hr'];
+        $remove_target = ['source'];
         foreach ($removeSelectors as $sel) {
-            $crawler2->filter($sel)->each(function($node) use (&$extractedHtml){
+            $lowerSel = strtolower($sel);
+
+            // void element は正規表現で削除
+            if (in_array($lowerSel, $remove_target)) {
+                $extractedHtml = preg_replace("#<{$lowerSel}\b[^>]*>#i", '', $extractedHtml);
+                continue;
+            }
+
+            // 通常の要素は DOM で削除
+            $crawler2 = new Crawler($extractedHtml);
+            $crawler2->filter($sel)->each(function ($node) use (&$extractedHtml) {
                 $outer = $node->getNode(0)->ownerDocument->saveHTML($node->getNode(0));
                 $extractedHtml = str_replace($outer, '', $extractedHtml);
             });
