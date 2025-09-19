@@ -112,14 +112,21 @@ class Url extends Model
         // $filePath = "htmls/{$host}/" . ltrim($path, '/');
         $filePath = "htmls/{$host}{$path}";
 
+        // --- テンプレート埋め込み ---
+        $templatePath = "template/{$host}.html";
+        if (!Storage::disk('public')->exists($templatePath)) {
+            throw new \Exception("テンプレートが存在しません: {$templatePath}");
+        }
+        $extractedHtml = Storage::disk('public')->get($templatePath);
+
         // --- 抽出部分 ---
         $crawler = new Crawler($html);
-        $extractSelectors = $domain->extractSelectors->pluck('selector')->toArray();
-        $extractedHtml = '';
-        foreach ($extractSelectors as $sel) {
-            $node = $crawler->filter($sel);
-            if ($node->count()) $extractedHtml .= $node->html();
+        foreach ($domain->extractSelectors as $rule) {
+            $node = $crawler->filter($rule->selector);
+            $content = $node->count() ? $node->html() : '';
+            $extractedHtml = str_replace('{{ ' . $rule->mark . ' }}', $content, $extractedHtml);
         }
+        $extractedHtml = $extractedHtml;
 
         // --- 削除対象 ---
         $removeSelectors = $domain->removeSelectors->pluck('selector')->toArray();
@@ -175,19 +182,11 @@ class Url extends Model
             } catch (\Exception $e) {}
         });
 
-        // --- テンプレート埋め込み ---
-        $templatePath = "template/{$host}/template.html";
-        if (!Storage::disk('public')->exists($templatePath)) {
-            throw new \Exception("テンプレートが存在しません: {$templatePath}");
-        }
-        $templateHtml = Storage::disk('public')->get($templatePath);
-        $finalHtml = str_replace('{{ content }}', $extractedHtml, $templateHtml);
-
         // --- ディレクトリ作成 ---
         $dir = dirname(storage_path('app/public/' . $filePath));
         if (!is_dir($dir)) mkdir($dir, 0755, true);
 
-        Storage::disk('public')->put($filePath, $finalHtml);
+        Storage::disk('public')->put($filePath, $extractedHtml);
 
         $this->html_path = $filePath;
         $this->save();
