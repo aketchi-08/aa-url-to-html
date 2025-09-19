@@ -17,7 +17,7 @@ class UrlController extends Controller
      */
     public function index()
     {
-        $urls = Url::with('user')->latest()->paginate(10);
+        $urls = Url::with('user')->latest()->paginate(100);
         return view('urls.index', compact('urls'));
     }
 

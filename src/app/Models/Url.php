@@ -144,33 +144,33 @@ class Url extends Model
         }
 
         // --- 画像ダウンロード & 相対パス変換 ---
+        $htmlDir = dirname($filePath); // HTMLと同じディレクトリに保存
+
         $crawler3 = new Crawler($extractedHtml);
-        $crawler3->filter('img')->each(function($node) use (&$extractedHtml, $filePath) {
+        $crawler3->filter('img')->each(function($node) use (&$extractedHtml, $htmlDir) {
             $src = $node->attr('src');
             if (!$src) return;
 
-            // --- 絶対URLに変換（相対や / で始まるのも解決）---
-            $baseUrl = $this->url;
-            $absUrl  = (string) \GuzzleHttp\Psr7\UriResolver::resolve(
-                new \GuzzleHttp\Psr7\Uri($baseUrl),
-                new \GuzzleHttp\Psr7\Uri($src)
-            );
+            // 絶対URL化
+            $absUrl = (string) UriResolver::resolve(new Uri($this->url), new Uri($src));
 
-            $imgParsed = parse_url($absUrl);
-            $imgFile   = basename($imgParsed['path'] ?? 'image.png');
+            // ファイル名取得（URLデコード＆クエリ除去）
+            $imgPath = parse_url($absUrl, PHP_URL_PATH);
+            $decodedPath = urldecode($imgPath);
+            $fileName = basename(explode('?', $decodedPath)[0]); // x_large.png
 
-            // --- HTMLと同じディレクトリに保存 ---
-            $htmlDir   = dirname($filePath); // 例: htmls/example.com/path/result
-            $savePath  = "{$htmlDir}/{$imgFile}"; 
+            // 保存先
+            $savePath = $htmlDir . '/' . $fileName;
+            $fullDir  = storage_path('app/public/' . $htmlDir);
+            if (!is_dir($fullDir)) mkdir($fullDir, 0755, true);
 
             try {
                 $response = Http::get($absUrl);
                 if ($response->successful()) {
                     Storage::disk('public')->put($savePath, $response->body());
 
-                    // --- HTML内の参照を ./ファイル名 に変更 ---
-                    $relativePath = './' . $imgFile;
-                    $extractedHtml = str_replace($src, $relativePath, $extractedHtml);
+                    // HTML内のsrcを ./ファイル名 に置換
+                    $extractedHtml = str_replace($src, './' . $fileName, $extractedHtml);
                 }
             } catch (\Exception $e) {}
         });
