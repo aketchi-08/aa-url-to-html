@@ -80,6 +80,11 @@
                         @endforelse
                     </tbody>
                 </table>
+
+                <!-- ページネーションリンク -->
+                <div class="mt-3">
+                    {{ $urls->links() }}
+                </div>
             </div>
         </div>
     </div>

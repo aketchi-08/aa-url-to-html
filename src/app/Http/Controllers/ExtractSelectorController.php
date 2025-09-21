@@ -11,14 +11,19 @@ class ExtractSelectorController extends Controller
         $request->validate([
             'domain_id' => 'required|exists:domains,id',
             'selector' => 'required|string',
+            'mark'      => 'nullable|string|max:50',
         ]);
-        ExtractSelector::create($request->all());
+        ExtractSelector::create($request->only(['domain_id', 'selector', 'mark']));
         return back();
     }
 
     public function update(Request $request, ExtractSelector $extractSelector) {
-        $request->validate(['selector' => 'required|string']);
-        $extractSelector->update($request->all());
+        $request->validate([
+            'selector' => 'required|string',
+            'mark'     => 'nullable|string|max:50',
+        ]);
+
+        $extractSelector->update($request->only(['selector', 'mark']));
         return back();
     }
 

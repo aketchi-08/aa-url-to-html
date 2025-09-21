@@ -23,21 +23,29 @@
         <div class="card-header py-3">抽出セレクタ一覧</div>
         <div class="card-body">
             <table class="table table-bordered" id="extract-table">
-                <thead><tr><th>セレクタ</th><th>操作</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>セレクタ</th>
+                        <th>マーク</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
                 <tbody>
                     @foreach($domain->extractSelectors as $sel)
                     <tr data-id="{{ $sel->id }}">
                         <td id="extract-selector-{{ $sel->id }}" contenteditable="true" class="selector">{{ $sel->selector }}</td>
+                        <td id="extract-mark-{{ $sel->id }}" contenteditable="true" class="mark">{{ $sel->mark }}</td>
                         <td>
-                            <button type="button" class="btn btn-success btn-sm btn-update" data-target="{{ route('extract-selectors.update', $sel->id) }}" data-value="extract-selector-{{ $sel->id }}">更新</button>
+                            <button type="button" class="btn btn-success btn-sm btn-update" data-target="{{ route('extract-selectors.update', $sel->id) }}" data-selector="extract-selector-{{ $sel->id }}" data-mark="extract-mark-{{ $sel->id }}">更新</button>
                             <button type="button" class="btn btn-danger btn-sm btn-delete" data-target="{{ route('extract-selectors.destroy', $sel->id) }}">削除</button>
                         </td>
                     </tr>
                     @endforeach
                     <tr>
                         <td id="extract-selector" contenteditable="true" class="selector"></td>
+                        <td id="extract-mark" contenteditable="true" class="selector">content</td>
                         <td>
-                            <button type="button" class="btn btn-primary btn-sm btn-store" data-target="{{ route('extract-selectors.store') }}" data-value="extract-selector">追加</button>
+                            <button type="button" class="btn btn-primary btn-sm btn-store" data-target="{{ route('extract-selectors.store') }}" data-selector="extract-selector" data-mark="extract-mark">追加</button>
                         </td>
                     </tr>
                 </tbody>
@@ -56,7 +64,7 @@
                     <tr data-id="{{ $sel->id }}">
                         <td id="remove-selector-{{ $sel->id }}" contenteditable="true" class="selector">{{ $sel->selector }}</td>
                         <td>
-                            <button type="button" class="btn btn-success btn-sm btn-update" data-target="{{ route('remove-selectors.update', $sel->id) }}" data-value="remove-selector-{{ $sel->id }}">更新</button>
+                            <button type="button" class="btn btn-success btn-sm btn-update" data-target="{{ route('remove-selectors.update', $sel->id) }}" data-selector="remove-selector-{{ $sel->id }}">更新</button>
                             <button type="button" class="btn btn-danger btn-sm btn-delete" data-target="{{ route('remove-selectors.destroy', $sel->id) }}">削除</button>
                         </td>
                     </tr>
@@ -64,7 +72,7 @@
                     <tr>
                         <td id="remove-selector" contenteditable="true" class="selector"></td>
                         <td>
-                            <button type="button" class="btn btn-primary btn-sm btn-store" data-target="{{ route('remove-selectors.store') }}" data-value="remove-selector">追加</button>
+                            <button type="button" class="btn btn-primary btn-sm btn-store" data-target="{{ route('remove-selectors.store') }}" data-selector="remove-selector">追加</button>
                         </td>
                     </tr>
                 </tbody>
@@ -77,6 +85,7 @@
     @csrf
     @method('PUT')
     <input id="input-update-selector" type="hidden" name="selector" />
+    <input id="input-update-mark" type="hidden" name="mark" />
 </form>
 
 <form id="form-delete-selector" method="POST">
@@ -89,6 +98,7 @@
     @csrf
     <input type="hidden" name="domain_id" value="{{ $domain->id }}">
     <input id="input-store-selector" type="hidden" name="selector" />
+    <input id="input-store-mark" type="hidden" name="mark" />
 </form>
 @endsection
 
@@ -99,9 +109,10 @@ $(function() {
     $('.btn-update').click(function(){
         $target = $(this).data('target');
         $('#form-update-selector').attr('action', $target);
-        $value = $(this).data('value');
-        $value = $('#' + $value).text();
-        $('#input-update-selector').val($value);
+        $selector = $('#' + $(this).data('selector')).text();
+        $('#input-update-selector').val($selector);
+        $mark = $('#' + $(this).data('mark')).text();
+        $('#input-update-mark').val($mark);
         $('#form-update-selector').submit();
     });
 
@@ -119,9 +130,10 @@ $(function() {
     $('.btn-store').click(function(){
         $target = $(this).data('target');
         $('#form-store-selector').attr('action', $target);
-        $value = $(this).data('value');
-        $value = $('#' + $value).text();
-        $('#input-store-selector').val($value);
+        $selector = $('#' + $(this).data('selector')).text();
+        $('#input-store-selector').val($selector);
+        $mark = $('#' + $(this).data('mark')).text();
+        $('#input-store-mark').val($mark);
         $('#form-store-selector').submit();
     });
 });
