@@ -6,7 +6,7 @@ services:
     build:
       context: ./docker/php
       dockerfile: Dockerfile
-    container_name: laravel-aa-url-to-html
+    container_name: url-to-html-backend
     working_dir: /var/www
     volumes:
       - ./src:/var/www
@@ -25,9 +25,9 @@ services:
   # Nginx
   web:
     image: nginx:latest
-    container_name: nginx-aa-url-to-html
+    container_name: url-to-html-nginx
     ports:
-      - "8000:80"
+      - "8001:80"
     volumes:
       - ./src:/var/www
       - ./docker/nginx:/etc/nginx/conf.d
@@ -40,7 +40,7 @@ services:
   # MySQL
   db:
     image: mysql:8.0
-    container_name: mysql-aa-url-to-html
+    container_name: url-to-html-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -48,7 +48,7 @@ services:
       MYSQL_USER: laravel
       MYSQL_PASSWORD: secret
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - dbdata:/var/lib/mysql
     networks:
@@ -57,12 +57,12 @@ services:
   # phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin-aa-url-to-html
+    container_name: url-to-html-phpmyadmin
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
     ports:
-      - "8080:80"
+      - "8081:80"
     depends_on:
       - db
     networks:
@@ -71,7 +71,7 @@ services:
   # Composer
   composer:
     image: composer:latest
-    container_name: composer-aa-url-to-html
+    container_name: url-to-html-composer
     working_dir: /var/www
     volumes:
       - ./src:/var/www
@@ -84,7 +84,7 @@ services:
     build:
       context: ./docker/node
       dockerfile: Dockerfile
-    container_name: node-aa-url-to-html
+    container_name: url-to-html-node
     working_dir: /var/www
     volumes:
       - ./src:/var/www
