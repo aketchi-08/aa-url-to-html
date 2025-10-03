@@ -176,14 +176,37 @@ class UrlController extends Controller
     {
         try {
             // HTTPリクエストでURLのHTMLを取得
-            $response = Http::get($url->url);
-            if ($response->successful()) {
-                $url->saveHtmlWithTemplateAndAssets($url->domain, $response->body());
+            $parsed = parse_url($url->url);
+            $host = preg_replace('/^www\./i', '', strtolower($parsed['host'] ?? ''));
+            $path = $parsed['path'] ?? '/';
 
-                return redirect()->route('urls.index')->with('success', 'HTMLを再生成しました');
-            } else {
-                return redirect()->route('urls.index')->with('error', '取得に失敗しました');
+            if ($path === '/' || !pathinfo($path, PATHINFO_EXTENSION)) {
+                $path = rtrim($path, '/'); // 最後の / を削除
+                $path .= '/_index.html';   // _index.html を付与
             }
+
+            $filePath = "htmls/{$host}{$path}";
+
+            if (Storage::disk('public')->exists($filePath)) {
+                $htmlContent = Storage::disk('public')->get($filePath);
+                // $htmlContent にファイルの中身が入る
+            } else {
+                $htmlContent = null;
+                return redirect()->route('urls.index')->with('error', 'エラー: ファイルは存在しない' . $e->getMessage());
+            }
+
+            $url->saveHtmlWithTemplateAndAssets($url->domain, $htmlContent);
+
+            return redirect()->route('urls.index')->with('success', 'HTMLを再生成しました');
+
+            // $response = Http::get($url->url);
+            // if ($response->successful()) {
+            //     $url->saveHtmlWithTemplateAndAssets($url->domain, $response->body());
+
+            //     return redirect()->route('urls.index')->with('success', 'HTMLを再生成しました');
+            // } else {
+            //     return redirect()->route('urls.index')->with('error', '取得に失敗しました');
+            // }
         } catch (\Exception $e) {
             return redirect()->route('urls.index')->with('error', 'エラー: ' . $e->getMessage());
         }
